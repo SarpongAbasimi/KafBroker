@@ -7,6 +7,7 @@ import vulcan.{AvroError}
 import fs2.kafka._
 import vulcan.{AvroSettings, SchemaRegistryClientSettings, avroDeserializer, avroSerializer}
 import fs2.Stream
+import scala.concurrent.duration._
 
 /** Person Event**/
 case class Name(name: String) extends AnyVal
@@ -125,9 +126,13 @@ object Fs2Kafka extends IOApp {
      record <- Stream.eval(IO(ProducerRecord("messageTopic", (), exOne)))
      producerRecords <- Stream.eval(IO(println("Publishing message")) >> IO(ProducerRecords.one(record)))
      s <- Stream.eval(a.produce(producerRecords))
+    _ <- Stream.eval(s.flatMap(data => IO(println(data.records.map(_._2)))))
     } yield s
 
-    kafkaProducer.compile.drain.as(ExitCode.Success)
+  (  for {
+      _ <- Stream.awakeEvery[IO](3.seconds)
+    e <- kafkaProducer
+    } yield e).compile.drain.as(ExitCode.Success)
 //    stream.compile.drain.as(ExitCode.Success)
   }
 }
